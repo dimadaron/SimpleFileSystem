@@ -3,6 +3,13 @@
 #include<stdlib.h>
 
 struct file {
-char* name;
-int size;
+	char* name;
+	int size;
 }
+
+struct directory {
+	char* name;
+	file* filearray;
+
+}
+
