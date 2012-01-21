@@ -9,9 +9,9 @@ BOOL attachfs(char* OsFileName);
 BOOL detachfs();
 
 void* create (char* FileName, int SizeBlocks);
-void* open (char* FileName, char RWflag);
-int read (int fd, int BlockNum, char* Buff, int BuffLengh);
-int write (int fd, int BlockNum, char* Buff, int BuffLengh);
+void* open   (char* FileName, char RWflag);
+int   read   (int fd, int BlockNum, char* Buff, int BuffLengh);
+int   write  (int fd, int BlockNum, char* Buff, int BuffLengh);
 BOOL close(int fd);
 
 BOOL rename(char* OldFileName, char* NewFileName);
