@@ -13,12 +13,12 @@
 TCHAR szName[]=TEXT("Global\\MyFileMappingObject");
 TCHAR szMsg[]=TEXT("Message from first process.");
 
-char* pBuf;
+char* pDisk;
 char* bitMap;
 File* folder;
 OpenFiles* openFiles;
 char* data;
-
+HANDLE Mutex;
 
 int diskInBlocksSize;
 int fileSystemSizeInBlocks;
@@ -32,17 +32,20 @@ int blocksForOpenFiles;
 int main()
 {
 	HANDLE myHandle;
+	char* result = "";
 
-	TCHAR VirtualDisc[]=TEXT("Carmi.carmi");
+	//TCHAR VirtualDisc[]=TEXT("Carmi.carmi");
 	initFS("Carmi.Carmi1",100000);
 	myHandle = create("dima.txt", 10);
-	myHandle = open("dima.txt", READ);
-
+	myHandle = open("dima.txt", READWRITE);
+	write((int)myHandle, 0, "Dima is the best", 16);
+	read((int)myHandle, 0, result , 16);
+	puts(result);
 	close((int)myHandle);	
 
 
 
-//	UnmapViewOfFile(pBuf);
+//	UnmapViewOfFile(pDisk);
 
 //	CloseHandle(hMapFile);
 
@@ -93,13 +96,13 @@ void createVirtualDisk(char* OsFileName, int virtualDiskSize)
 		szName);                 // name of mapping object
 
 
-	pBuf = (char*) MapViewOfFile(hMapFile,   // handle to map object
+	pDisk = (char*) MapViewOfFile(hMapFile,   // handle to map object
 		FILE_MAP_ALL_ACCESS, // read/write permission
 		0,
 		0,
 		0);
 
-/*	if (pBuf == NULL)
+/*	if (pDisk == NULL)
 	{
 		_tprintf(TEXT("Could not map view of file (%d).\n"),
 			GetLastError());
@@ -115,7 +118,7 @@ void CreateMyBitmap()
 	int bytesForBitmap;
 	int i;
 	
-	bitMap = pBuf;
+	bitMap = pDisk;
 	bytesForBitmap = fileSystemSizeInBlocks / BYTE_SIZE;
 	blocksForBitmap = (bytesForBitmap / BLOCK_SIZE) + 1;
 
@@ -201,7 +204,6 @@ void BlockFree(int blockNum)
 
 void* create(char* FileName, int sizeInBlocks)
 {
-	HANDLE Mutex;
 	int sizeOfSystemBlock;
 	int freeBlocksCounter;
 	int startBlockForFile;
@@ -288,10 +290,67 @@ BOOL close (int fd)
 	return FALSE;
 }
 
-int write(int fd, int BlockNum, char* Buff, int Bufflengh)
+int write(int fd, int BlockNum, char* Buff, int BuffLengh)
 {
+	int i;
 	File* fileToWrite;
 	fileToWrite = (File*)fd;
+	Mutex = CreateMutex(NULL, FALSE, NULL);
+	WaitForSingleObject(Mutex, INFINITE);
+
+	for(i = 0; i < MAX_OPEN_FILES; i ++)
+	{
+		if (openFiles[i].file.blockNumber == fileToWrite->blockNumber)
+		{
+			 if (openFiles[i].readWrite == WRITE || openFiles[i].readWrite == READWRITE)
+			 {
+				memcpy(&pDisk[fileToWrite->blockNumber + BlockNum], Buff, BuffLengh);
+				ReleaseMutex(Mutex);
+				return BuffLengh;  
+			 }
+			 else
+			 {
+				ReleaseMutex(Mutex);
+				printf("File isn't open to writing");
+				return -1;
+			 }
+		}
+	}
+	ReleaseMutex(Mutex);
+	printf("No such file apeers to be open");
+	return -1;
+}
+
+int   read  (int fd, int BlockNum, char* Buff, int BuffLengh)
+{
+	int i;
+	File* fileToRead;
+	fileToRead = (File*)fd;
+	Mutex = CreateMutex(NULL, FALSE, NULL);
+	WaitForSingleObject(Mutex, INFINITE);
+
+	for(i = 0; i < MAX_OPEN_FILES; i ++)
+	{
+		if (openFiles[i].file.blockNumber == fileToRead->blockNumber)
+		{
+			 if (openFiles[i].readWrite == READ || openFiles[i].readWrite == READWRITE)
+			 {
+				memcpy(Buff,(&pDisk[fileToRead->blockNumber + BlockNum]), BuffLengh);
+			//	FIXME memory vailation 
+				ReleaseMutex(Mutex);
+				return BuffLengh;  
+			 }
+			 else
+			 {
+				ReleaseMutex(Mutex);
+				printf("File isn't open to reading");
+				return -1;
+			 }
+		}
+	}
+	ReleaseMutex(Mutex);
+	printf("No such file apeers to be open");
+	return -1;
 
 }
 
