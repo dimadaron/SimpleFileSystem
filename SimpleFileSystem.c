@@ -32,14 +32,14 @@ int blocksForOpenFiles;
 int main()
 {
 	HANDLE myHandle;
-	char* result = "";
+	char* result = (char*)malloc(1);
 
 	//TCHAR VirtualDisc[]=TEXT("Carmi.carmi");
 	initFS("Carmi.Carmi1",100000);
 	myHandle = create("dima.txt", 10);
 	myHandle = open("dima.txt", READWRITE);
-	write((int)myHandle, 0, "Dima is the best", 16);
-	read((int)myHandle, 0, result , 16);
+	write((int)myHandle, 0, "Dima is the best", 17);
+	read((int)myHandle, 0, result , 17);
 	puts(result);
 	close((int)myHandle);	
 
@@ -324,6 +324,7 @@ int write(int fd, int BlockNum, char* Buff, int BuffLengh)
 int   read  (int fd, int BlockNum, char* Buff, int BuffLengh)
 {
 	int i;
+	char* result = (char*) malloc(BuffLengh);
 	File* fileToRead;
 	fileToRead = (File*)fd;
 	Mutex = CreateMutex(NULL, FALSE, NULL);
@@ -335,8 +336,9 @@ int   read  (int fd, int BlockNum, char* Buff, int BuffLengh)
 		{
 			 if (openFiles[i].readWrite == READ || openFiles[i].readWrite == READWRITE)
 			 {
-				memcpy(Buff,(&pDisk[fileToRead->blockNumber + BlockNum]), BuffLengh);
+				 memcpy(result,(&pDisk[fileToRead->blockNumber + BlockNum]),(size_t)BuffLengh);
 			//	FIXME memory vailation 
+				 strncpy(Buff, result,BuffLengh);
 				ReleaseMutex(Mutex);
 				return BuffLengh;  
 			 }
