@@ -45,9 +45,9 @@ int main()
 
 
 
-//	UnmapViewOfFile(pDisk);
+	//	UnmapViewOfFile(pDisk);
 
-//	CloseHandle(hMapFile);
+	//	CloseHandle(hMapFile);
 
 	return 0;
 }
@@ -57,7 +57,7 @@ int main()
 
 BOOL initFS(char* OsFileName, int SizeInBlocks)
 {
-//	HANDLE hFile;
+	//	HANDLE hFile;
 
 	fileSystemSizeInBlocks = SizeInBlocks;
 
@@ -75,7 +75,7 @@ BOOL initFS(char* OsFileName, int SizeInBlocks)
 
 void createVirtualDisk(char* OsFileName, int virtualDiskSize)
 {
-		
+
 	HANDLE hFile, hMapFile;
 
 	hFile = CreateFile (
@@ -102,14 +102,14 @@ void createVirtualDisk(char* OsFileName, int virtualDiskSize)
 		0,
 		0);
 
-/*	if (pDisk == NULL)
+	/*	if (pDisk == NULL)
 	{
-		_tprintf(TEXT("Could not map view of file (%d).\n"),
-			GetLastError());
+	_tprintf(TEXT("Could not map view of file (%d).\n"),
+	GetLastError());
 
-		CloseHandle(hMapFile);
+	CloseHandle(hMapFile);
 
-		return 1;
+	return 1;
 	} */
 }
 
@@ -117,7 +117,7 @@ void CreateMyBitmap()
 {
 	int bytesForBitmap;
 	int i;
-	
+
 	bitMap = pDisk;
 	bytesForBitmap = fileSystemSizeInBlocks / BYTE_SIZE;
 	blocksForBitmap = (bytesForBitmap / BLOCK_SIZE) + 1;
@@ -144,7 +144,7 @@ void CreateFolder()
 	bytesForFolder = sizeof(File) * MAX_FILES;
 	blocksForFolder = bytesForFolder / BYTE_SIZE + 1;
 
-	
+
 	// 
 	for (i = blocksForBitmap; i < (blocksForBitmap + blocksForFolder); i++)
 	{
@@ -169,7 +169,7 @@ void CreateOpenFiles()
 	bytesForOpenFiles = sizeof(OpenFiles) * MAX_FILES;
 	blocksForOpenFiles = bytesForOpenFiles / BYTE_SIZE + 1;
 
-	
+
 	// blocks for the open files section
 	for (i = blocksForBitmap + blocksForFolder; i <(blocksForBitmap + blocksForFolder + blocksForFolder); i++)
 	{
@@ -207,7 +207,7 @@ void* create(char* FileName, int sizeInBlocks)
 	int sizeOfSystemBlock;
 	int freeBlocksCounter;
 	int startBlockForFile;
-	int i, j;
+	int i, j, l;
 	freeBlocksCounter = 0;
 	Mutex = CreateMutex(NULL, FALSE, NULL);
 
@@ -233,13 +233,16 @@ void* create(char* FileName, int sizeInBlocks)
 					folder[j].blockNumber = i - sizeInBlocks + 1;
 					folder[j].numOfBlock = sizeInBlocks;
 					folder[j].free = FALSE;
-					BlockOccupy(sizeInBlocks);
+					for(l = folder[j].blockNumber; l < folder[j].blockNumber + sizeInBlocks; l ++)
+					{
+						BlockOccupy(l);
+					}
 					ReleaseMutex(Mutex);
 					return &folder[j];
 				}
 			}
 			ReleaseMutex(Mutex);
-			printf("Max number of files is reachead");
+			printf("Max number of files is reached");
 			return INVALID_HANDLE_VALUE;
 		}
 	}
@@ -264,7 +267,7 @@ void* open (char* FileName, int RWflag)
 					return &(folder[i]);
 				}
 			}
-			printf("you'v reached max of opend files");
+			printf("you've reached max of opened files");
 			return INVALID_HANDLE_VALUE;
 		}	
 	}
@@ -286,7 +289,7 @@ BOOL close (int fd)
 			return TRUE;
 		}
 	}
-	printf("No such file apeers to be open");
+	printf("No such file appears to be open");
 	return FALSE;
 }
 
@@ -302,18 +305,18 @@ int write(int fd, int BlockNum, char* Buff, int BuffLengh)
 	{
 		if (openFiles[i].file.blockNumber == fileToWrite->blockNumber)
 		{
-			 if (openFiles[i].readWrite == WRITE || openFiles[i].readWrite == READWRITE)
-			 {
+			if (openFiles[i].readWrite == WRITE || openFiles[i].readWrite == READWRITE)
+			{
 				memcpy(&pDisk[fileToWrite->blockNumber + BlockNum], Buff, BuffLengh);
 				ReleaseMutex(Mutex);
 				return BuffLengh;  
-			 }
-			 else
-			 {
+			}
+			else
+			{
 				ReleaseMutex(Mutex);
 				printf("File isn't open to writing");
 				return -1;
-			 }
+			}
 		}
 	}
 	ReleaseMutex(Mutex);
@@ -334,25 +337,75 @@ int   read  (int fd, int BlockNum, char* Buff, int BuffLengh)
 	{
 		if (openFiles[i].file.blockNumber == fileToRead->blockNumber)
 		{
-			 if (openFiles[i].readWrite == READ || openFiles[i].readWrite == READWRITE)
-			 {
-				 memcpy(result,(&pDisk[fileToRead->blockNumber + BlockNum]),(size_t)BuffLengh);
-			//	FIXME memory vailation 
-				 strncpy(Buff, result,BuffLengh);
+			if (openFiles[i].readWrite == READ || openFiles[i].readWrite == READWRITE)
+			{
+				memcpy(result,(&pDisk[fileToRead->blockNumber + BlockNum]),(size_t)BuffLengh);
+				//	FIXME memory violation 
+				strncpy(Buff, result,BuffLengh);
 				ReleaseMutex(Mutex);
 				return BuffLengh;  
-			 }
-			 else
-			 {
+			}
+			else
+			{
 				ReleaseMutex(Mutex);
 				printf("File isn't open to reading");
 				return -1;
-			 }
+			}
 		}
 	}
 	ReleaseMutex(Mutex);
-	printf("No such file apeers to be open");
+	printf("No such file appears to be open");
 	return -1;
 
 }
 
+BOOL renameFile(char* OldFileName, char* NewFileName)
+{
+	int i;
+
+	for(i = 0; i < MAX_FILES; i++)
+	{
+		if(strcmp(folder[i].filename,OldFileName) == 0)
+		{
+			strncpy(folder[i].filename, NewFileName, sizeof(NewFileName));
+			return TRUE;
+		}
+	}
+	printf("File not found");
+	return FALSE;
+}
+
+BOOL deleteFile(char* FileName)
+{
+	int i;
+	int j;
+
+	for(i = 0; i < MAX_OPEN_FILES; i++)
+	{
+		if (strcmp(openFiles[i].file.filename, FileName)== 0)
+		{
+			printf("Cannot be deleted the file is open");
+			return FALSE;
+		}
+	}
+	for(i = 0; i < MAX_FILES; i++)
+	{
+		if(strcmp(folder[i].filename, FileName))
+		{
+			for(j = folder[i].blockNumber; j < folder[i].blockNumber + folder[i].numOfBlock; j ++)
+			{
+				BlockFree(j);
+			}
+
+			folder[i].filename = "";
+			folder[i].blockNumber = -1;
+			folder[i].numOfBlock = 0;
+			folder[i].free = TRUE;
+			ReleaseMutex(Mutex);
+			return TRUE;
+		}
+	}
+	printf("File not found");
+
+	return FALSE;
+}
